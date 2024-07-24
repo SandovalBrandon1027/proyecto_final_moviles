@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/location_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
+import '../../services/calculation_service.dart';
 
 class Home extends StatelessWidget {
   const Home({Key? key}) : super(key: key);
@@ -231,6 +232,30 @@ class Home extends StatelessWidget {
                   isLocation: false,
                 );
                 _controller.clear();
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.calculate),
+            onPressed: () async {
+              var calculationService = CalculationService();
+              var result = await calculationService.calculate();
+
+              var user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                String message;
+                if (result['type'] == 'error') {
+                  message = result['message'];
+                } else if (result['type'] == 'distance') {
+                  message = 'Distancia: ${result['value']} km';
+                } else {
+                  message = 'Perímetro: ${result['perimeter']} km\nÁrea: ${result['area']} km²';
+                }
+                await ChatService().sendMessage(
+                  message,
+                  'Servidor',
+                  isLocation: false,
+                );
               }
             },
           ),
