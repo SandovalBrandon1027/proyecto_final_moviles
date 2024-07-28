@@ -7,8 +7,31 @@ import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
 import '../../services/calculation_service.dart';
 
-class Home extends StatelessWidget {
+class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
+
+  @override
+  _HomeState createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +105,10 @@ class Home extends StatelessWidget {
 
         var messages = snapshot.data!.docs;
 
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
         return ListView.builder(
+          controller: _scrollController,
           itemCount: messages.length,
           itemBuilder: (context, index) {
             var message = messages[index];
@@ -90,9 +116,11 @@ class Home extends StatelessWidget {
             bool isLocation = message['isLocation'] ?? false;
 
             return Align(
-              alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+              alignment:
+                  isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
-                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.7),
                 margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 padding: EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -132,7 +160,8 @@ class Home extends StatelessWidget {
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('No se puede abrir el enlace.'),
+                                    content:
+                                        Text('No se puede abrir el enlace.'),
                                   ),
                                 );
                               }
@@ -175,7 +204,6 @@ class Home extends StatelessWidget {
   }
 
   Widget _buildMessageInput(BuildContext context) {
-    TextEditingController _controller = TextEditingController();
     return Padding(
       padding: const EdgeInsets.all(10.0),
       child: Row(
@@ -232,6 +260,7 @@ class Home extends StatelessWidget {
                   isLocation: false,
                 );
                 _controller.clear();
+                _scrollToBottom(); // Autoscroll after sending a message
               }
             },
           ),
@@ -249,13 +278,15 @@ class Home extends StatelessWidget {
                 } else if (result['type'] == 'distance') {
                   message = 'Distancia: ${result['value']} km';
                 } else {
-                  message = 'Perímetro: ${result['perimeter']} km\nÁrea: ${result['area']} km²';
+                  message =
+                      'Perímetro: ${result['perimeter']} km\nÁrea: ${result['area']} km²';
                 }
                 await ChatService().sendMessage(
                   message,
                   'Servidor',
                   isLocation: false,
                 );
+                _scrollToBottom(); // Autoscroll after calculation
               }
             },
           ),
