@@ -1,3 +1,4 @@
+// lib/screens/home.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -58,7 +59,7 @@ class _HomeState extends State<Home> {
           children: <Widget>[
             DrawerHeader(
               decoration: BoxDecoration(
-                color: Colors.blue, // Utiliza el color azul
+                color: Colors.blue,
               ),
               child: Text(
                 'Menú',
@@ -81,7 +82,6 @@ class _HomeState extends State<Home> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 30),
               Expanded(child: _buildChat()),
@@ -111,13 +111,12 @@ class _HomeState extends State<Home> {
           controller: _scrollController,
           itemCount: messages.length,
           itemBuilder: (context, index) {
-            var message = messages[index];
+            var message = messages[index].data() as Map<String, dynamic>;
             bool isCurrentUser = message['userId'] == currentUser!.email;
             bool isLocation = message['isLocation'] ?? false;
 
             return Align(
-              alignment:
-                  isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
                 constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.7),
@@ -145,7 +144,7 @@ class _HomeState extends State<Home> {
                           IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
                             onPressed: () async {
-                              await ChatService().deleteMessage(message.id);
+                              await ChatService().deleteMessage(messages[index].id);
                             },
                           ),
                       ],
@@ -160,8 +159,7 @@ class _HomeState extends State<Home> {
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content:
-                                        Text('No se puede abrir el enlace.'),
+                                    content: Text('No se puede abrir el enlace.'),
                                   ),
                                 );
                               }
@@ -169,12 +167,17 @@ class _HomeState extends State<Home> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Image.network(
-                                  'https://img.freepik.com/vector-premium/mapa-ciudad-ubicacion-plano-ciudad-pin-cartografia-ruta-gps-punteros-navegacion-rojos-fondo_152104-165.jpg',
-                                  width: 200,
-                                  height: 200,
-                                  fit: BoxFit.cover,
-                                ),
+                                if (message.containsKey('location') &&
+                                    message['location'] != null)
+                                  Container(
+                                    width: double.infinity,
+                                    child: Image.network(
+                                      'https://maps.googleapis.com/maps/api/staticmap?center=${message['location']['latitude']},${message['location']['longitude']}&zoom=15&size=200x200&markers=color:red%7Clabel:C%7C${message['location']['latitude']},${message['location']['longitude']}&key=AIzaSyCrEDcgmVLzf0tGj5Y8RJBlDHqmB9vKsVc',
+                                      width: 200,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Ubicación exacta',
@@ -187,7 +190,7 @@ class _HomeState extends State<Home> {
                             ),
                           )
                         : Text(
-                            message['text'],
+                            message['text'] ?? '',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.black,
@@ -229,16 +232,20 @@ class _HomeState extends State<Home> {
                 );
 
                 var user = FirebaseAuth.instance.currentUser;
-                var message = googleMapsLink;
-
                 if (user != null) {
+                  GeoPoint geoPoint = GeoPoint(
+                    locationData.latitude!,
+                    locationData.longitude!,
+                  );
+
                   await ChatService().sendMessage(
-                    message,
+                    googleMapsLink,
                     user.email!,
                     isLocation: true,
+                    location: geoPoint,
                   );
-                  // Actualizar la ubicación del usuario en Firestore
-                  await ChatService().updateUserLocation(user.email!, message);
+
+                  await ChatService().updateUserLocation(user.email!, geoPoint);
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -253,14 +260,21 @@ class _HomeState extends State<Home> {
             icon: Icon(Icons.send),
             onPressed: () async {
               var user = FirebaseAuth.instance.currentUser;
-              if (user != null && _controller.text.isNotEmpty) {
+              var text = _controller.text.trim(); // Eliminar espacios en blanco
+              if (user != null && text.isNotEmpty) {
                 await ChatService().sendMessage(
-                  _controller.text,
+                  text,
                   user.email!,
                   isLocation: false,
                 );
-                _controller.clear();
+                _controller.clear(); // Limpiar el campo de texto solo después de enviar el mensaje
                 _scrollToBottom(); // Autoscroll after sending a message
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('El mensaje no puede estar vacío.'),
+                  ),
+                );
               }
             },
           ),
