@@ -4,11 +4,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class Signup extends StatelessWidget {
+class Signup extends StatefulWidget {
   Signup({super.key});
 
+  @override
+  _SignupState createState() => _SignupState();
+}
+
+class _SignupState extends State<Signup> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  String _selectedRole = 'Usuario';
 
   @override
   Widget build(BuildContext context) {
@@ -23,32 +29,33 @@ class Signup extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-         padding: const EdgeInsets.symmetric(horizontal: 16,vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(
             children: [
               Center(
                 child: Text(
-                  'Registrate',
+                  'Regístrate',
                   style: GoogleFonts.raleway(
                     textStyle: const TextStyle(
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
-                      fontSize: 32
-                    )
+                      fontSize: 32,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 80,),
-               _emailAddress(),
-               const SizedBox(height: 20,),
-               _password(),
-               const SizedBox(height: 50,),
-               _signup(context),
+              _emailAddress(),
+              const SizedBox(height: 20,),
+              _password(),
+              const SizedBox(height: 20,),
+              _roleDropdown(),
+              const SizedBox(height: 50,),
+              _signup(context),
             ],
           ),
-
+        ),
       ),
-      )
     );
   }
 
@@ -63,8 +70,8 @@ class Signup extends StatelessWidget {
             textStyle: const TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.normal,
-              fontSize: 16
-            )
+              fontSize: 16,
+            ),
           ),
         ),
         const SizedBox(height: 16,),
@@ -76,15 +83,15 @@ class Signup extends StatelessWidget {
             hintStyle: const TextStyle(
               color: Color(0xff6A6A6A),
               fontWeight: FontWeight.normal,
-              fontSize: 14
+              fontSize: 14,
             ),
-            fillColor: const Color(0xffF7F7F9) ,
+            fillColor: const Color(0xffF7F7F9),
             border: OutlineInputBorder(
               borderSide: BorderSide.none,
-              borderRadius: BorderRadius.circular(14)
-            )
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
-        )
+        ),
       ],
     );
   }
@@ -95,13 +102,13 @@ class Signup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Password',
+          'Contraseña',
           style: GoogleFonts.raleway(
             textStyle: const TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.normal,
-              fontSize: 16
-            )
+              fontSize: 16,
+            ),
           ),
         ),
         const SizedBox(height: 16,),
@@ -113,17 +120,34 @@ class Signup extends StatelessWidget {
             hintStyle: const TextStyle(
               color: Color(0xff6A6A6A),
               fontWeight: FontWeight.normal,
-              fontSize: 14
+              fontSize: 14,
             ),
             filled: true,
-            fillColor: const Color(0xffF7F7F9) ,
+            fillColor: const Color(0xffF7F7F9),
             border: OutlineInputBorder(
               borderSide: BorderSide.none,
-              borderRadius: BorderRadius.circular(14)
-            )
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
-        )
+        ),
       ],
+    );
+  }
+
+  Widget _roleDropdown() {
+    return DropdownButton<String>(
+      value: _selectedRole,
+      items: <String>['Usuario', 'Administrador'].map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedRole = newValue!;
+        });
+      },
     );
   }
 
@@ -131,20 +155,21 @@ class Signup extends StatelessWidget {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xff0D6EFD),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          minimumSize: const Size(double.infinity, 60),
-          elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        minimumSize: const Size(double.infinity, 60),
+        elevation: 0,
       ),
       onPressed: () async {
-       await AuthService().signup(
+        await AuthService().signup(
           email: _emailController.text,
           password: _passwordController.text,
-          context: context
+          context: context,
+          role: _selectedRole,
         );
       },
-      child: const Text("Registrate", style: TextStyle(color: Colors.white)),
+      child: const Text("Regístrate", style: TextStyle(color: Colors.white)),
     );
   }
 
@@ -156,31 +181,32 @@ class Signup extends StatelessWidget {
         text: TextSpan(
           children: [
             const TextSpan(
-                text: "¿Ya tienes una cuenta? ",
-                style: TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16
-                ),
+              text: "¿Ya tienes una cuenta? ",
+              style: TextStyle(
+                color: Color(0xff6A6A6A),
+                fontWeight: FontWeight.normal,
+                fontSize: 16,
               ),
-              TextSpan(
-                text: "Inicia sesión",
-                style: const TextStyle(
-                    color: Color(0xff1A1D1E),
-                    fontWeight: FontWeight.normal,
-                    fontSize: 16
-                  ),
-                  recognizer: TapGestureRecognizer()..onTap = () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Login()
-                      ),
-                    );
-                  }
+            ),
+            TextSpan(
+              text: "Inicia sesión",
+              style: const TextStyle(
+                color: Color(0xff1A1D1E),
+                fontWeight: FontWeight.normal,
+                fontSize: 16,
               ),
-          ]
-        )
+              recognizer: TapGestureRecognizer()
+                ..onTap = () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Login(),
+                    ),
+                  );
+                },
+            ),
+          ],
+        ),
       ),
     );
   }
