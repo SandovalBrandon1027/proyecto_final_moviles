@@ -1,4 +1,3 @@
-// lib/screens/home.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -190,7 +189,7 @@ class _HomeState extends State<Home> {
                             ),
                           )
                         : Text(
-                            message['text'] ?? '',
+                            message['message'] ?? '', // Asegúrate de que estamos usando el campo correcto
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.black,
@@ -267,7 +266,7 @@ class _HomeState extends State<Home> {
                   user.email!,
                   isLocation: false,
                 );
-                _controller.clear(); // Limpiar el campo de texto solo después de enviar el mensaje
+                _controller.clear();
                 _scrollToBottom(); // Autoscroll after sending a message
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
