@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../pages/home/home.dart';
 import '../pages/login/login.dart';
+import '../pages/admin/admin.dart'; 
 
 class AuthService {
   Future<void> signup({
@@ -19,25 +20,37 @@ class AuthService {
       );
 
       String collectionName = role == 'Administrador' ? 'administradores' : 'users';
+      String uid = userCredential.user!.uid;
 
       // Reemplaza caracteres no permitidos en el correo electrónico
       String documentId = email.replaceAll(RegExp(r'[^\w\s]+'), '_');
 
       await FirebaseFirestore.instance
           .collection(collectionName)
-          .doc(documentId)
+          .doc(uid)
           .set({
         'email': email,
         'role': role,
       });
 
       await Future.delayed(const Duration(seconds: 1));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (BuildContext context) => Home(),
-        ),
-      );
+
+      // Redirige basado en el rol
+      if (role == 'Administrador') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (BuildContext context) => Admin(),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (BuildContext context) => Home(),
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = '';
       if (e.code == 'weak-password') {
@@ -71,18 +84,42 @@ class AuthService {
     required BuildContext context,
   }) async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      String documentId = email.replaceAll(RegExp(r'[^\w\s]+'), '_');
+
+      // Obtiene el rol del usuario desde Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(documentId).get();
+      DocumentSnapshot adminDoc = await FirebaseFirestore.instance.collection('administradores').doc(documentId).get();
+
+      String role = '';
+      if (userDoc.exists) {
+        role = 'Usuario';
+      } else if (adminDoc.exists) {
+        role = 'Administrador';
+      }
+
       await Future.delayed(const Duration(seconds: 1));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (BuildContext context) => Home(),
-        ),
-      );
+
+      // Redirige basado en el rol
+      if (role == 'Administrador') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (BuildContext context) => Admin(),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (BuildContext context) => Home(),
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = '';
       if (e.code == 'invalid-email') {
