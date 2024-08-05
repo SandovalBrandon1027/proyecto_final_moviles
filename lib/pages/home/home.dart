@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // Importa Google Maps
 import '../../services/location_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
@@ -17,10 +18,14 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _controller = TextEditingController();
+  GoogleMapController? _mapController; // Controlador del mapa
+  Map<String, Marker> _userMarkers = {}; // Marcadores de usuarios
+  bool _mapVisible = false; // Controla la visibilidad del mapa
 
   @override
   void initState() {
     super.initState();
+    _fetchUserLocations();
   }
 
   void _scrollToBottom() {
@@ -29,6 +34,87 @@ class _HomeState extends State<Home> {
         _scrollController.position.maxScrollExtent,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> _fetchUserLocations() async {
+    // Obtener ubicaciones de usuarios
+    var userDocs = await FirebaseFirestore.instance.collection('users').get();
+    Map<String, dynamic> userLocations = {};
+
+    for (var doc in userDocs.docs) {
+      var data = doc.data();
+      if (data['location'] != null) {
+        userLocations[doc.id] = {
+          'latitude': data['location']['latitude'],
+          'longitude': data['location']['longitude'],
+          'isActive': true, // Asumimos que todos los usuarios están activos
+          'name': doc.id,
+          'index': 1, // Puedes ajustar esto según tus necesidades
+        };
+      }
+    }
+
+    _updateUserMarkers(userLocations);
+  }
+
+  void _updateUserMarkers(Map<String, dynamic> userLocations) {
+    final newMarkers = <String, Marker>{};
+
+    userLocations.forEach((userId, locationData) {
+      if (locationData['isActive']) {
+        newMarkers[userId] = Marker(
+          markerId: MarkerId(userId),
+          position: LatLng(locationData['latitude'], locationData['longitude']),
+          infoWindow: InfoWindow(
+            title: locationData['name'],
+            snippet: 'Topólogo ${locationData['index']}',
+          ),
+        );
+      }
+    });
+
+    setState(() {
+      _userMarkers = newMarkers;
+    });
+  }
+
+  Future<void> _sendLocation() async {
+    var locationService = LocationService();
+    var locationData = await locationService.getLocation();
+
+    if (locationData != null) {
+      var googleMapsLink = locationService.generateGoogleMapsLink(
+        locationData.latitude!,
+        locationData.longitude!,
+      );
+
+      var user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        GeoPoint geoPoint = GeoPoint(
+          locationData.latitude!,
+          locationData.longitude!,
+        );
+
+        await ChatService().sendMessage(
+          googleMapsLink,
+          user.email!,
+          isLocation: true,
+          location: geoPoint,
+        );
+
+        await ChatService().updateUserLocation(user.email!, geoPoint);
+        _fetchUserLocations(); // Actualizar marcadores después de enviar la ubicación
+        setState(() {
+          _mapVisible = true; // Mostrar el mapa después de enviar la ubicación
+        });
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo obtener la ubicación.'),
+        ),
       );
     }
   }
@@ -85,6 +171,21 @@ class _HomeState extends State<Home> {
               const SizedBox(height: 30),
               Expanded(child: _buildChat()),
               _buildMessageInput(context),
+              _mapVisible
+                  ? Container(
+                      height: 200,
+                      child: GoogleMap(
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+                        },
+                        markers: _userMarkers.values.toSet(),
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(0, 0), // Posición inicial del mapa
+                          zoom: 2, // Nivel de zoom inicial
+                        ),
+                      ),
+                    )
+                  : Container(),
             ],
           ),
         ),
@@ -115,7 +216,8 @@ class _HomeState extends State<Home> {
             bool isLocation = message['isLocation'] ?? false;
 
             return Align(
-              alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+              alignment:
+                  isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
                 constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.7),
@@ -143,7 +245,8 @@ class _HomeState extends State<Home> {
                           IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
                             onPressed: () async {
-                              await ChatService().deleteMessage(messages[index].id);
+                              await ChatService()
+                                  .deleteMessage(messages[index].id);
                             },
                           ),
                       ],
@@ -158,7 +261,8 @@ class _HomeState extends State<Home> {
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('No se puede abrir el enlace.'),
+                                    content:
+                                        Text('No se puede abrir el enlace.'),
                                   ),
                                 );
                               }
@@ -189,7 +293,8 @@ class _HomeState extends State<Home> {
                             ),
                           )
                         : Text(
-                            message['message'] ?? '', // Asegúrate de que estamos usando el campo correcto
+                            message['message'] ??
+                                '', // Asegúrate de que estamos usando el campo correcto
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.black,
@@ -214,94 +319,32 @@ class _HomeState extends State<Home> {
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
-                labelText: 'Escribe un mensaje',
+                hintText: 'Escribe un mensaje...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
           IconButton(
-            icon: Icon(Icons.location_on),
+            icon: Icon(Icons.send, color: Colors.blue),
             onPressed: () async {
-              var locationService = LocationService();
-              var locationData = await locationService.getLocation();
-
-              if (locationData != null) {
-                var googleMapsLink = locationService.generateGoogleMapsLink(
-                  locationData.latitude!,
-                  locationData.longitude!,
-                );
-
-                var user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  GeoPoint geoPoint = GeoPoint(
-                    locationData.latitude!,
-                    locationData.longitude!,
-                  );
-
-                  await ChatService().sendMessage(
-                    googleMapsLink,
-                    user.email!,
-                    isLocation: true,
-                    location: geoPoint,
-                  );
-
-                  await ChatService().updateUserLocation(user.email!, geoPoint);
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('No se pudo obtener la ubicación.'),
-                  ),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.send),
-            onPressed: () async {
+              var text = _controller.text.trim();
               var user = FirebaseAuth.instance.currentUser;
-              var text = _controller.text.trim(); // Eliminar espacios en blanco
-              if (user != null && text.isNotEmpty) {
+
+              if (text.isNotEmpty && user != null) {
                 await ChatService().sendMessage(
                   text,
                   user.email!,
                   isLocation: false,
                 );
                 _controller.clear();
-                _scrollToBottom(); // Autoscroll after sending a message
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('El mensaje no puede estar vacío.'),
-                  ),
-                );
               }
             },
           ),
           IconButton(
-            icon: Icon(Icons.calculate),
-            onPressed: () async {
-              var calculationService = CalculationService();
-              var result = await calculationService.calculate();
-
-              var user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                String message;
-                if (result['type'] == 'error') {
-                  message = result['message'];
-                } else if (result['type'] == 'distance') {
-                  message = 'Distancia: ${result['value']} km';
-                } else {
-                  message =
-                      'Perímetro: ${result['perimeter']} km\nÁrea: ${result['area']} km²';
-                }
-                await ChatService().sendMessage(
-                  message,
-                  'Servidor',
-                  isLocation: false,
-                );
-                _scrollToBottom(); // Autoscroll after calculation
-              }
-            },
+            icon: Icon(Icons.location_on, color: Colors.red),
+            onPressed: _sendLocation,
           ),
         ],
       ),
