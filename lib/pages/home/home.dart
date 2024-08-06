@@ -8,7 +8,6 @@ import 'dart:async';
 import 'dart:math';
 import '../../services/auth_service.dart';
 
-
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
 
@@ -203,91 +202,10 @@ class _HomeState extends State<Home> {
     }
   }
 
-  Future<void> _fetchUserLocations() async {
-    // Obtener ubicaciones de usuarios
-    var userDocs = await FirebaseFirestore.instance.collection('users').get();
-    Map<String, dynamic> userLocations = {};
-
-    for (var doc in userDocs.docs) {
-      var data = doc.data();
-      if (data['location'] != null) {
-        userLocations[doc.id] = {
-          'latitude': data['location']['latitude'],
-          'longitude': data['location']['longitude'],
-          'isActive': true, // Asumimos que todos los usuarios están activos
-          'name': doc.id,
-          'index': 1, // Puedes ajustar esto según tus necesidades
-        };
-      }
-    }
-
-    _updateUserMarkers(userLocations);
-  }
-
-  void _updateUserMarkers(Map<String, dynamic> userLocations) {
-    final newMarkers = <String, Marker>{};
-
-    userLocations.forEach((userId, locationData) {
-      if (locationData['isActive']) {
-        newMarkers[userId] = Marker(
-          markerId: MarkerId(userId),
-          position: LatLng(locationData['latitude'], locationData['longitude']),
-          infoWindow: InfoWindow(
-            title: locationData['name'],
-            snippet: 'Topólogo ${locationData['index']}',
-          ),
-        );
-      }
-    });
-
-    setState(() {
-      _userMarkers = newMarkers;
-    });
-  }
-
-  Future<void> _sendLocation() async {
-    var locationService = LocationService();
-    var locationData = await locationService.getLocation();
-
-    if (locationData != null) {
-      var googleMapsLink = locationService.generateGoogleMapsLink(
-        locationData.latitude!,
-        locationData.longitude!,
-      );
-
-      var user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        GeoPoint geoPoint = GeoPoint(
-          locationData.latitude!,
-          locationData.longitude!,
-        );
-
-        await ChatService().sendMessage(
-          googleMapsLink,
-          user.email!,
-          isLocation: true,
-          location: geoPoint,
-        );
-
-        await ChatService().updateUserLocation(user.email!, geoPoint);
-        _fetchUserLocations(); // Actualizar marcadores después de enviar la ubicación
-        setState(() {
-          _mapVisible = true; // Mostrar el mapa después de enviar la ubicación
-        });
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo obtener la ubicación.'),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-            backgroundColor: Colors.white,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Mapa'),
         backgroundColor: Colors.white,
@@ -328,6 +246,7 @@ class _HomeState extends State<Home> {
           ],
         ),
       ),
+
 
       body: Stack(
         children: [
