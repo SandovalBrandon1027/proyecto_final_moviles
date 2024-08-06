@@ -72,17 +72,17 @@ class _HomeState extends State<Home> {
   void _updateUserLocation(Position position) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'latitude': position.latitude,
         'longitude': position.longitude,
-      });
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
   }
 
   void _startListeningToActiveUsers() {
     _usersStreamSubscription = FirebaseFirestore.instance
         .collection('users')
-        .where('active', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
       _updateMarkers(snapshot.docs);
@@ -92,34 +92,38 @@ class _HomeState extends State<Home> {
   void _updateMarkers(List<QueryDocumentSnapshot> docs) {
     setState(() {
       _markers = docs.map((doc) {
-        return Marker(
-          width: 80.0,
-          height: 80.0,
-          point: LatLng(doc['latitude'], doc['longitude']),
-          child: GestureDetector(
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text(doc['name']),
-                    content: Text(doc['email']),
-                    actions: <Widget>[
-                      TextButton(
-                        child: Text('Cerrar'),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-            child: Icon(Icons.location_on, color: Colors.red),
-          ),
-        );
-      }).toList();
+        var data = doc.data() as Map<String, dynamic>;
+        if (data['latitude'] != null && data['longitude'] != null) {
+          return Marker(
+            width: 80.0,
+            height: 80.0,
+            point: LatLng(data['latitude'], data['longitude']),
+            child: GestureDetector(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text(data['name'] ?? 'Usuario'),
+                      content: Text(data['email'] ?? ''),
+                      actions: <Widget>[
+                        TextButton(
+                          child: Text('Cerrar'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: Icon(Icons.location_on, color: Colors.red),
+            ),
+          );
+        }
+        return null;
+      }).whereType<Marker>().toList();
 
       _polylines = _createPolylines(_markers.map((marker) => marker.point).toList());
       _area = _calculatePolygonArea(_markers.map((marker) => marker.point).toList());
@@ -194,6 +198,9 @@ class _HomeState extends State<Home> {
       
       // Actualizar la ubicación en Firestore
       _updateUserLocation(position);
+      
+      // Actualizar los marcadores
+      _startListeningToActiveUsers();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -247,7 +254,6 @@ class _HomeState extends State<Home> {
         ),
       ),
 
-
       body: Stack(
         children: [
           GestureDetector(
@@ -267,8 +273,10 @@ class _HomeState extends State<Home> {
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
-                center: LatLng(0, 0),
-                zoom: 2,
+                center: _markers.isNotEmpty 
+                    ? _markers.first.point 
+                    : LatLng(0, 0),
+                zoom: 13.0,
               ),
               children: [
                 TileLayer(

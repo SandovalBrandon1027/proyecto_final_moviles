@@ -40,7 +40,7 @@ class AuthService {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (BuildContext context) => Admin(),
+            builder: (BuildContext context) => AdminMap(),
           ),
         );
       } else {
@@ -109,7 +109,7 @@ class AuthService {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (BuildContext context) => Admin(),
+            builder: (BuildContext context) => AdminMap(),
           ),
         );
       } else {
