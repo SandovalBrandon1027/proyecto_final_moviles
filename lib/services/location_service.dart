@@ -1,7 +1,9 @@
 import 'package:location/location.dart' as loc;
+import 'package:firebase_database/firebase_database.dart';
 
 class LocationService {
-  // Método para obtener la ubicación actual del dispositivo
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref().child('location');
+
   Future<loc.LocationData?> getLocation() async {
     loc.Location location = loc.Location();
 
@@ -27,7 +29,13 @@ class LocationService {
     return await location.getLocation();
   }
 
-  // Método para generar un enlace de Google Maps con las coordenadas dadas
+  Future<void> sendLocation(double latitude, double longitude) async {
+    await _dbRef.set({
+      'latitude': latitude,
+      'longitude': longitude,
+    });
+  }
+
   String generateGoogleMapsLink(double latitude, double longitude) {
     return 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
   }

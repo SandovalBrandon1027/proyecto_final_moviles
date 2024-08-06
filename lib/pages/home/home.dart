@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../services/location_service.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
+import 'dart:math';
 import '../../services/auth_service.dart';
-import '../../services/chat_service.dart';
-import '../../services/calculation_service.dart';
+
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -15,30 +17,198 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  final ScrollController _scrollController = ScrollController();
-  final TextEditingController _controller = TextEditingController();
+  List<Marker> _markers = [];
+  List<Polyline> _polylines = [];
+  MapController _mapController = MapController();
+  StreamSubscription<Position>? _positionStreamSubscription;
+  StreamSubscription<QuerySnapshot>? _usersStreamSubscription;
+  double _area = 0.0;
+  bool _isLoading = false;
+  String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
+    _checkLocationPermission();
+    _getCurrentLocation();
+    _startListeningToLocationUpdates();
+    _startListeningToActiveUsers();
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    _usersStreamSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkLocationPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _errorMessage = 'Los permisos de ubicación fueron denegados';
+        });
+      }
+    }
+  }
+
+  void _startListeningToLocationUpdates() {
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 1,
+    );
+
+    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+      (Position position) {
+        _updateUserLocation(position);
+        setState(() {
+          _mapController.move(LatLng(position.latitude, position.longitude), _mapController.zoom);
+        });
+      },
+    );
+  }
+
+  void _updateUserLocation(Position position) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+      });
+    }
+  }
+
+  void _startListeningToActiveUsers() {
+    _usersStreamSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .where('active', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+      _updateMarkers(snapshot.docs);
+    });
+  }
+
+  void _updateMarkers(List<QueryDocumentSnapshot> docs) {
+    setState(() {
+      _markers = docs.map((doc) {
+        return Marker(
+          width: 80.0,
+          height: 80.0,
+          point: LatLng(doc['latitude'], doc['longitude']),
+          child: GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text(doc['name']),
+                    content: Text(doc['email']),
+                    actions: <Widget>[
+                      TextButton(
+                        child: Text('Cerrar'),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            child: Icon(Icons.location_on, color: Colors.red),
+          ),
+        );
+      }).toList();
+
+      _polylines = _createPolylines(_markers.map((marker) => marker.point).toList());
+      _area = _calculatePolygonArea(_markers.map((marker) => marker.point).toList());
+    });
+  }
+
+  List<Polyline> _createPolylines(List<LatLng> points) {
+    List<Polyline> polylines = [];
+
+    for (int i = 0; i < points.length; i++) {
+      for (int j = i + 1; j < points.length; j++) {
+        polylines.add(Polyline(
+          points: [points[i], points[j]],
+          strokeWidth: 2.0,
+          color: Colors.blue,
+        ));
+      }
+    }
+
+    return polylines;
+  }
+
+  double _calculatePolygonArea(List<LatLng> points) {
+    if (points.length < 3) return 0.0;
+
+    double area = 0.0;
+    int j = points.length - 1;
+
+    for (int i = 0; i < points.length; i++) {
+      LatLng p1 = points[j];
+      LatLng p2 = points[i];
+
+      double x1 = _toMeters(p1.latitude, p1.longitude).x;
+      double y1 = _toMeters(p1.latitude, p1.longitude).y;
+      double x2 = _toMeters(p2.latitude, p2.longitude).x;
+      double y2 = _toMeters(p2.latitude, p2.longitude).y;
+
+      area += (x1 * y2) - (x2 * y1);
+      j = i;
+    }
+
+    return area.abs() / 2.0;
+  }
+
+  Point _toMeters(double lat, double lon) {
+    const double R = 6378137.0;
+    double x = R * lon * pi / 180.0;
+    double y = R * log(tan((90.0 + lat) * pi / 360.0));
+    return Point(x, y);
+  }
+
+  void _getCurrentLocation() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _mapController.move(LatLng(position.latitude, position.longitude), 13.0);
+        
+        // Añadir un marcador para la ubicación del usuario
+        _markers.add(Marker(
+          width: 80.0,
+          height: 80.0,
+          point: LatLng(position.latitude, position.longitude),
+          child: Icon(Icons.person_pin, color: Colors.red, size: 40),
+        ));
+        _isLoading = false;
+      });
+      
+      // Actualizar la ubicación en Firestore
+      _updateUserLocation(position);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "Error al obtener la ubicación actual: $e";
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+            backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Chat'),
+        title: Text('Mapa'),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: Builder(
@@ -77,234 +247,95 @@ class _HomeState extends State<Home> {
           ],
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            children: [
-              const SizedBox(height: 30),
-              Expanded(child: _buildChat()),
-              _buildMessageInput(context),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildChat() {
-    var currentUser = FirebaseAuth.instance.currentUser;
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: ChatService().getMessages(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        var messages = snapshot.data!.docs;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-
-        return ListView.builder(
-          controller: _scrollController,
-          itemCount: messages.length,
-          itemBuilder: (context, index) {
-            var message = messages[index].data() as Map<String, dynamic>;
-            bool isCurrentUser = message['userId'] == currentUser!.email;
-            bool isLocation = message['isLocation'] ?? false;
-
-            return Align(
-              alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.7),
-                margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                padding: EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isCurrentUser ? Colors.blue[200] : Colors.grey[300],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          message['userId'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[900],
-                          ),
-                        ),
-                        if (isCurrentUser)
-                          IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () async {
-                              await ChatService().deleteMessage(messages[index].id);
-                            },
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    isLocation
-                        ? InkWell(
-                            onTap: () async {
-                              var url = message['text'];
-                              if (await canLaunch(url)) {
-                                await launch(url);
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('No se puede abrir el enlace.'),
-                                  ),
-                                );
-                              }
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (message.containsKey('location') &&
-                                    message['location'] != null)
-                                  Container(
-                                    width: double.infinity,
-                                    child: Image.network(
-                                      'https://maps.googleapis.com/maps/api/staticmap?center=${message['location']['latitude']},${message['location']['longitude']}&zoom=15&size=200x200&markers=color:red%7Clabel:C%7C${message['location']['latitude']},${message['location']['longitude']}&key=AIzaSyCrEDcgmVLzf0tGj5Y8RJBlDHqmB9vKsVc',
-                                      width: 200,
-                                      height: 200,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Ubicación exacta',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : Text(
-                            message['message'] ?? '', // Asegúrate de que estamos usando el campo correcto
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
-                          ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildMessageInput(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(10.0),
-      child: Row(
+      body: Stack(
         children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: 'Escribe un mensaje',
+          GestureDetector(
+            onTapUp: (TapUpDetails details) {
+              final RenderBox renderBox = context.findRenderObject() as RenderBox;
+              final point = renderBox.globalToLocal(details.globalPosition);
+              final latlng = _mapController.pointToLatLng(CustomPoint(point.dx, point.dy));
+              setState(() {
+                _markers.add(Marker(
+                  width: 80.0,
+                  height: 80.0,
+                  point: latlng,
+                  child: Icon(Icons.location_on, color: Colors.red),
+                ));
+              });
+            },
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                center: LatLng(0, 0),
+                zoom: 2,
               ),
+              children: [
+                TileLayer(
+                  urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  subdomains: ['a', 'b', 'c'],
+                ),
+                MarkerLayer(markers: _markers),
+                PolylineLayer(polylines: _polylines),
+              ],
             ),
           ),
-          IconButton(
-            icon: Icon(Icons.location_on),
-            onPressed: () async {
-              var locationService = LocationService();
-              var locationData = await locationService.getLocation();
-
-              if (locationData != null) {
-                var googleMapsLink = locationService.generateGoogleMapsLink(
-                  locationData.latitude!,
-                  locationData.longitude!,
-                );
-
-                var user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  GeoPoint geoPoint = GeoPoint(
-                    locationData.latitude!,
-                    locationData.longitude!,
-                  );
-
-                  await ChatService().sendMessage(
-                    googleMapsLink,
-                    user.email!,
-                    isLocation: true,
-                    location: geoPoint,
-                  );
-
-                  await ChatService().updateUserLocation(user.email!, geoPoint);
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('No se pudo obtener la ubicación.'),
-                  ),
-                );
-              }
-            },
+          Positioned(
+            top: 20,
+            left: 20,
+            child: Column(
+              children: [
+                FloatingActionButton(
+                  heroTag: "btn1",
+                  mini: true,
+                  child: Icon(Icons.add),
+                  onPressed: () {
+                    setState(() {
+                      _mapController.move(_mapController.center, _mapController.zoom + 1);
+                    });
+                  },
+                ),
+                SizedBox(height: 10),
+                FloatingActionButton(
+                  heroTag: "btn2",
+                  mini: true,
+                  child: Icon(Icons.remove),
+                  onPressed: () {
+                    setState(() {
+                      _mapController.move(_mapController.center, _mapController.zoom - 1);
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
-          IconButton(
-            icon: Icon(Icons.send),
-            onPressed: () async {
-              var user = FirebaseAuth.instance.currentUser;
-              var text = _controller.text.trim(); // Eliminar espacios en blanco
-              if (user != null && text.isNotEmpty) {
-                await ChatService().sendMessage(
-                  text,
-                  user.email!,
-                  isLocation: false,
-                );
-                _controller.clear();
-                _scrollToBottom(); // Autoscroll after sending a message
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('El mensaje no puede estar vacío.'),
-                  ),
-                );
-              }
-            },
+          Positioned(
+            top: 20,
+            right: 20,
+            child: Container(
+              color: Colors.white,
+              padding: EdgeInsets.all(8.0),
+              child: Text('Área: ${_area.toStringAsFixed(2)} m²'),
+            ),
           ),
-          IconButton(
-            icon: Icon(Icons.calculate),
-            onPressed: () async {
-              var calculationService = CalculationService();
-              var result = await calculationService.calculate();
-
-              var user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                String message;
-                if (result['type'] == 'error') {
-                  message = result['message'];
-                } else if (result['type'] == 'distance') {
-                  message = 'Distancia: ${result['value']} km';
-                } else {
-                  message =
-                      'Perímetro: ${result['perimeter']} km\nÁrea: ${result['area']} km²';
-                }
-                await ChatService().sendMessage(
-                  message,
-                  'Servidor',
-                  isLocation: false,
-                );
-                _scrollToBottom(); // Autoscroll after calculation
-              }
-            },
-          ),
+          if (_isLoading)
+            Center(child: CircularProgressIndicator()),
+          if (_errorMessage.isNotEmpty)
+            Center(child: Text(_errorMessage, style: TextStyle(color: Colors.red))),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: "btn3",
+        onPressed: _getCurrentLocation,
+        child: Icon(Icons.my_location),
       ),
     );
   }
+}
+
+class Point {
+  final double x;
+  final double y;
+
+  Point(this.x, this.y);
 }
