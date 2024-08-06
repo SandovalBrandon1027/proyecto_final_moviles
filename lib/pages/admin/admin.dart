@@ -7,7 +7,6 @@ import 'dart:async';
 import 'dart:math';
 import '../../services/auth_service.dart';
 import 'user_management_page.dart';
-import '../../services/auth_service.dart';
 
 class AdminMap extends StatefulWidget {
   const AdminMap({Key? key}) : super(key: key);
@@ -22,8 +21,9 @@ class _AdminMapState extends State<AdminMap> {
   MapController _mapController = MapController();
   StreamSubscription<QuerySnapshot>? _usersStreamSubscription;
   double _area = 0.0;
-  bool _isLoading = false;
+  bool _isLoading = true;
   String _errorMessage = '';
+  bool _isMapReady = false;
 
   @override
   void initState() {
@@ -38,15 +38,24 @@ class _AdminMapState extends State<AdminMap> {
   }
 
   void _startListeningToActiveUsers() {
+    print("Iniciando la escucha de usuarios activos");
     _usersStreamSubscription = FirebaseFirestore.instance
         .collection('users')
         .snapshots()
         .listen((snapshot) {
+      print("Recibida actualización de usuarios: ${snapshot.docs.length} documentos");
       _updateMarkers(snapshot.docs);
+    }, onError: (error) {
+      print("Error al escuchar usuarios: $error");
+      setState(() {
+        _errorMessage = "Error al cargar usuarios: $error";
+        _isLoading = false;
+      });
     });
   }
 
   void _updateMarkers(List<QueryDocumentSnapshot> docs) {
+    print("Actualizando marcadores");
     setState(() {
       _markers = docs.map((doc) {
         var data = doc.data() as Map<String, dynamic>;
@@ -85,9 +94,10 @@ class _AdminMapState extends State<AdminMap> {
       _polylines = _createPolylines(_markers.map((marker) => marker.point).toList());
       _area = _calculatePolygonArea(_markers.map((marker) => marker.point).toList());
 
-      if (_markers.isNotEmpty && _mapController.center == null) {
-        _mapController.move(_markers.first.point, 13.0);
-      }
+      _isLoading = false;
+      _isMapReady = true;
+      
+      print("Marcadores actualizados: ${_markers.length}");
     });
   }
 
@@ -105,6 +115,7 @@ class _AdminMapState extends State<AdminMap> {
     }
 
     return polylines;
+    // ... (sin cambios)
   }
 
   double _calculatePolygonArea(List<LatLng> points) {
@@ -127,6 +138,7 @@ class _AdminMapState extends State<AdminMap> {
     }
 
     return area.abs() / 2.0;
+    // ... (sin cambios)
   }
 
   Point _toMeters(double lat, double lon) {
@@ -134,6 +146,8 @@ class _AdminMapState extends State<AdminMap> {
     double x = R * lon * pi / 180.0;
     double y = R * log(tan((90.0 + lat) * pi / 360.0));
     return Point(x, y);
+
+    // ... (sin cambios)
   }
 
   @override
@@ -187,64 +201,67 @@ class _AdminMapState extends State<AdminMap> {
             ),
           ],
         ),
+        // ... (sin cambios)
       ),
       body: Stack(
         children: [
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              center: _markers.isNotEmpty 
-                  ? _markers.first.point 
-                  : LatLng(0, 0),
-              zoom: 13.0,
+              center: LatLng(-1.831239, -78.183406),
+              zoom: 8.0,
             ),
             children: [
               TileLayer(
                 urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: ['a', 'b', 'c'],
               ),
-              MarkerLayer(markers: _markers),
-              PolylineLayer(polylines: _polylines),
+              if (_isMapReady) ...[
+                MarkerLayer(markers: _markers),
+                PolylineLayer(polylines: _polylines),
+              ],
             ],
           ),
-          Positioned(
-            top: 20,
-            left: 20,
-            child: Column(
-              children: [
-                FloatingActionButton(
-                  heroTag: "btn1",
-                  mini: true,
-                  child: Icon(Icons.add),
-                  onPressed: () {
-                    setState(() {
-                      _mapController.move(_mapController.center!, _mapController.zoom + 1);
-                    });
-                  },
-                ),
-                SizedBox(height: 10),
-                FloatingActionButton(
-                  heroTag: "btn2",
-                  mini: true,
-                  child: Icon(Icons.remove),
-                  onPressed: () {
-                    setState(() {
-                      _mapController.move(_mapController.center!, _mapController.zoom - 1);
-                    });
-                  },
-                ),
-              ],
+          if (_isMapReady)
+            Positioned(
+              top: 20,
+              left: 20,
+              child: Column(
+                children: [
+                  FloatingActionButton(
+                    heroTag: "btn1",
+                    mini: true,
+                    child: Icon(Icons.add),
+                    onPressed: () {
+                      setState(() {
+                        _mapController.move(_mapController.center, _mapController.zoom + 1);
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: "btn2",
+                    mini: true,
+                    child: Icon(Icons.remove),
+                    onPressed: () {
+                      setState(() {
+                        _mapController.move(_mapController.center, _mapController.zoom - 1);
+                      });
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          Positioned(
-            top: 20,
-            right: 20,
-            child: Container(
-              color: Colors.white,
-              padding: EdgeInsets.all(8.0),
-              child: Text('Área: ${_area.toStringAsFixed(2)} m²'),
+          if (_isMapReady)
+            Positioned(
+              top: 20,
+              right: 20,
+              child: Container(
+                color: Colors.white,
+                padding: EdgeInsets.all(8.0),
+                child: Text('Área: ${_area.toStringAsFixed(2)} m²'),
+              ),
             ),
-          ),
           if (_isLoading)
             Center(child: CircularProgressIndicator()),
           if (_errorMessage.isNotEmpty)
