@@ -23,7 +23,7 @@ class AuthService {
       String uid = userCredential.user!.uid;
 
       // Reemplaza caracteres no permitidos en el correo electrónico
-      String documentId = email.replaceAll(RegExp(r'[^\w\s]+'), '_');
+      //String documentId = email.replaceAll(RegExp(r'[^\w\s]+'), '_');
 
       await FirebaseFirestore.instance
           .collection(collectionName)
@@ -38,16 +38,18 @@ class AuthService {
       // Redirige basado en el rol
       if (role == 'Administrador') {
         Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(
-            builder: (BuildContext context) => AdminMap(),
+            builder: (BuildContext context) => const AdminMap(),
           ),
         );
       } else {
         Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(
-            builder: (BuildContext context) => Home(),
+            builder: (BuildContext context) => const Home(),
           ),
         );
       }
@@ -84,6 +86,7 @@ class AuthService {
     required BuildContext context,
   }) async {
     try {
+      // ignore: unused_local_variable
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -107,16 +110,18 @@ class AuthService {
       // Redirige basado en el rol
       if (role == 'Administrador') {
         Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(
-            builder: (BuildContext context) => AdminMap(),
+            builder: (BuildContext context) => const AdminMap(),
           ),
         );
       } else {
         Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(
-            builder: (BuildContext context) => Home(),
+            builder: (BuildContext context) => const Home(),
           ),
         );
       }
@@ -153,6 +158,7 @@ class AuthService {
     await FirebaseAuth.instance.signOut();
     await Future.delayed(const Duration(seconds: 1));
     Navigator.pushReplacement(
+      // ignore: use_build_context_synchronously
       context,
       MaterialPageRoute(
         builder: (BuildContext context) => Login(),

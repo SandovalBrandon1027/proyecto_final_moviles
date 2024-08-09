@@ -9,16 +9,17 @@ import 'dart:math';
 import '../../services/auth_service.dart';
 
 class Home extends StatefulWidget {
-  const Home({Key? key}) : super(key: key);
+  const Home({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _HomeState createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
   List<Marker> _markers = [];
   List<Polyline> _polylines = [];
-  MapController _mapController = MapController();
+  final MapController _mapController = MapController();
   StreamSubscription<Position>? _positionStreamSubscription;
   StreamSubscription<QuerySnapshot>? _usersStreamSubscription;
   double _area = 0.0;
@@ -63,6 +64,7 @@ class _HomeState extends State<Home> {
       (Position position) {
         _updateUserLocation(position);
         setState(() {
+          // ignore: deprecated_member_use
           _mapController.move(LatLng(position.latitude, position.longitude), _mapController.zoom);
         });
       },
@@ -108,7 +110,7 @@ class _HomeState extends State<Home> {
                       content: Text(data['email'] ?? ''),
                       actions: <Widget>[
                         TextButton(
-                          child: Text('Cerrar'),
+                          child: const Text('Cerrar'),
                           onPressed: () {
                             Navigator.of(context).pop();
                           },
@@ -118,7 +120,7 @@ class _HomeState extends State<Home> {
                   },
                 );
               },
-              child: Icon(Icons.location_on, color: Colors.red),
+              child: const Icon(Icons.location_on, color: Colors.red),
             ),
           );
         }
@@ -191,7 +193,7 @@ class _HomeState extends State<Home> {
           width: 80.0,
           height: 80.0,
           point: LatLng(position.latitude, position.longitude),
-          child: Icon(Icons.person_pin, color: Colors.red, size: 40),
+          child: const Icon(Icons.person_pin, color: Colors.red, size: 40),
         ));
         _isLoading = false;
       });
@@ -214,13 +216,13 @@ class _HomeState extends State<Home> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Mapa'),
+        title: const Text('Mapa'),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: Builder(
           builder: (BuildContext context) {
             return IconButton(
-              icon: Icon(Icons.menu, color: Colors.black),
+              icon: const Icon(Icons.menu, color: Colors.black),
               onPressed: () {
                 Scaffold.of(context).openDrawer();
               },
@@ -232,7 +234,7 @@ class _HomeState extends State<Home> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
+            const DrawerHeader(
               decoration: BoxDecoration(
                 color: Colors.blue,
               ),
@@ -245,7 +247,7 @@ class _HomeState extends State<Home> {
               ),
             ),
             ListTile(
-              title: Text('Cerrar Sesión'),
+              title: const Text('Cerrar Sesión'),
               onTap: () async {
                 await AuthService().signout(context: context);
               },
@@ -260,28 +262,31 @@ class _HomeState extends State<Home> {
             onTapUp: (TapUpDetails details) {
               final RenderBox renderBox = context.findRenderObject() as RenderBox;
               final point = renderBox.globalToLocal(details.globalPosition);
+              // ignore: deprecated_member_use
               final latlng = _mapController.pointToLatLng(CustomPoint(point.dx, point.dy));
               setState(() {
                 _markers.add(Marker(
                   width: 80.0,
                   height: 80.0,
                   point: latlng,
-                  child: Icon(Icons.location_on, color: Colors.red),
+                  child: const Icon(Icons.location_on, color: Colors.red),
                 ));
               });
             },
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
+                // ignore: deprecated_member_use
                 center: _markers.isNotEmpty 
                     ? _markers.first.point 
-                    : LatLng(0, 0),
+                    : const LatLng(0, 0),
+                // ignore: deprecated_member_use
                 zoom: 13.0,
               ),
               children: [
                 TileLayer(
                   urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  subdomains: ['a', 'b', 'c'],
+                  subdomains: const ['a', 'b', 'c'],
                 ),
                 MarkerLayer(markers: _markers),
                 PolylineLayer(polylines: _polylines),
@@ -296,20 +301,22 @@ class _HomeState extends State<Home> {
                 FloatingActionButton(
                   heroTag: "btn1",
                   mini: true,
-                  child: Icon(Icons.add),
+                  child: const Icon(Icons.add),
                   onPressed: () {
                     setState(() {
+                      // ignore: deprecated_member_use
                       _mapController.move(_mapController.center, _mapController.zoom + 1);
                     });
                   },
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 FloatingActionButton(
                   heroTag: "btn2",
                   mini: true,
-                  child: Icon(Icons.remove),
+                  child: const Icon(Icons.remove),
                   onPressed: () {
                     setState(() {
+                      // ignore: deprecated_member_use
                       _mapController.move(_mapController.center, _mapController.zoom - 1);
                     });
                   },
@@ -322,20 +329,20 @@ class _HomeState extends State<Home> {
             right: 20,
             child: Container(
               color: Colors.white,
-              padding: EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(8.0),
               child: Text('Área: ${_area.toStringAsFixed(2)} m²'),
             ),
           ),
           if (_isLoading)
-            Center(child: CircularProgressIndicator()),
+            const Center(child: CircularProgressIndicator()),
           if (_errorMessage.isNotEmpty)
-            Center(child: Text(_errorMessage, style: TextStyle(color: Colors.red))),
+            Center(child: Text(_errorMessage, style: const TextStyle(color: Colors.red))),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: "btn3",
         onPressed: _getCurrentLocation,
-        child: Icon(Icons.my_location),
+        child: const Icon(Icons.my_location),
       ),
     );
   }

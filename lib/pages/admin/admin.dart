@@ -1,5 +1,7 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -9,16 +11,17 @@ import '../../services/auth_service.dart';
 import 'user_management_page.dart';
 
 class AdminMap extends StatefulWidget {
-  const AdminMap({Key? key}) : super(key: key);
+  const AdminMap({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _AdminMapState createState() => _AdminMapState();
 }
 
 class _AdminMapState extends State<AdminMap> {
   List<Marker> _markers = [];
   List<Polyline> _polylines = [];
-  MapController _mapController = MapController();
+  final MapController _mapController = MapController();
   StreamSubscription<QuerySnapshot>? _usersStreamSubscription;
   double _area = 0.0;
   bool _isLoading = true;
@@ -74,7 +77,7 @@ class _AdminMapState extends State<AdminMap> {
                       content: Text(data['email'] ?? ''),
                       actions: <Widget>[
                         TextButton(
-                          child: Text('Cerrar'),
+                          child: const Text('Cerrar'),
                           onPressed: () {
                             Navigator.of(context).pop();
                           },
@@ -84,7 +87,7 @@ class _AdminMapState extends State<AdminMap> {
                   },
                 );
               },
-              child: Icon(Icons.location_on, color: Colors.red),
+              child: const Icon(Icons.location_on, color: Colors.red),
             ),
           );
         }
@@ -155,13 +158,13 @@ class _AdminMapState extends State<AdminMap> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Mapa de Administrador'),
+        title: const Text('Mapa de Administrador'),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: Builder(
           builder: (BuildContext context) {
             return IconButton(
-              icon: Icon(Icons.menu, color: Colors.black),
+              icon: const Icon(Icons.menu, color: Colors.black),
               onPressed: () {
                 Scaffold.of(context).openDrawer();
               },
@@ -173,7 +176,7 @@ class _AdminMapState extends State<AdminMap> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
+            const DrawerHeader(
               decoration: BoxDecoration(
                 color: Colors.blue,
               ),
@@ -186,16 +189,16 @@ class _AdminMapState extends State<AdminMap> {
               ),
             ),
             ListTile(
-              title: Text('Cerrar Sesión'),
+              title: const Text('Cerrar Sesión'),
               onTap: () async {
                 await AuthService().signout(context: context);
               },
             ),
             ListTile(
-              title: Text("Administrar usuarios"),
+              title: const Text("Administrar usuarios"),
               onTap: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => UserManagementPage(),
+                  builder: (context) => const UserManagementPage(),
                 ));
               },
             ),
@@ -207,14 +210,16 @@ class _AdminMapState extends State<AdminMap> {
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(
+            options: const MapOptions(
+              // ignore: deprecated_member_use
               center: LatLng(-1.831239, -78.183406),
+              // ignore: deprecated_member_use
               zoom: 8.0,
             ),
             children: [
               TileLayer(
                 urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: ['a', 'b', 'c'],
+                subdomains: const ['a', 'b', 'c'],
               ),
               if (_isMapReady) ...[
                 MarkerLayer(markers: _markers),
@@ -231,20 +236,22 @@ class _AdminMapState extends State<AdminMap> {
                   FloatingActionButton(
                     heroTag: "btn1",
                     mini: true,
-                    child: Icon(Icons.add),
+                    child: const Icon(Icons.add),
                     onPressed: () {
                       setState(() {
+                        // ignore: deprecated_member_use
                         _mapController.move(_mapController.center, _mapController.zoom + 1);
                       });
                     },
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   FloatingActionButton(
                     heroTag: "btn2",
                     mini: true,
-                    child: Icon(Icons.remove),
+                    child: const Icon(Icons.remove),
                     onPressed: () {
                       setState(() {
+                        // ignore: deprecated_member_use
                         _mapController.move(_mapController.center, _mapController.zoom - 1);
                       });
                     },
@@ -258,14 +265,14 @@ class _AdminMapState extends State<AdminMap> {
               right: 20,
               child: Container(
                 color: Colors.white,
-                padding: EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(8.0),
                 child: Text('Área: ${_area.toStringAsFixed(2)} m²'),
               ),
             ),
           if (_isLoading)
-            Center(child: CircularProgressIndicator()),
+            const Center(child: CircularProgressIndicator()),
           if (_errorMessage.isNotEmpty)
-            Center(child: Text(_errorMessage, style: TextStyle(color: Colors.red))),
+            Center(child: Text(_errorMessage, style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
