@@ -49,35 +49,42 @@ Este proyecto tiene como objetivo evaluar el desarrollo de aplicaciones móviles
 
 ## Características de la Aplicación
 
-### Login
+### Registrate / Inicio de sesión 
 
 La aplicación permite a los usuarios registrarse e iniciar sesión. Dependiendo del rol (Administrador o Usuario), la aplicación redirige a la vista correspondiente.
 
-**Código relevante: `auth_service.dart`**
+![image](https://github.com/user-attachments/assets/04180b89-b7d6-4e1a-9a4e-7f0b8801c784)
+
+![image](https://github.com/user-attachments/assets/f7ec55ab-d3ca-4d94-a15d-4fc670a1aa3f)
+
 
 ### Administración Web/Móvil
 
 El sistema de administración permite gestionar usuarios y administradores. La vista de administración muestra la ubicación en tiempo real de los topógrafos para monitorear su posición.
 
-**Código relevante: `admin.dart`**
+![image](https://github.com/user-attachments/assets/e466392a-877a-4289-a9c7-daae994e057a)
+
 
 ### Visualización de Terrenos
 
 Permite ver los terrenos, su ubicación, el polígono definido y el área calculada.
 
-**Código relevante: `calculation_service.dart`**
+![image](https://github.com/user-attachments/assets/cf36c1f2-1bda-499c-bf67-d38eedf77209)
+
 
 ### Geolocalización en Tiempo Real
 
 Utiliza Google Maps para mostrar la ubicación actual de los usuarios y generar enlaces de geolocalización.
 
-**Código relevante: `location_service.dart`**
+![image](https://github.com/user-attachments/assets/d2a1e5ec-0f6f-43d2-b392-7f94a907be23)
+
 
 ### Cálculo del Área
 
 Calcula el área del polígono formado por las ubicaciones de los topógrafos.
 
-**Código relevante: `calculation_service.dart`**
+![image](https://github.com/user-attachments/assets/61cecaad-3aeb-46c8-a0ec-ae738707a88e)
+
 
 ## Documentación y Videos
 
@@ -87,8 +94,7 @@ Un video de funcionamiento y una breve explicación del proceso de desarrollo es
 
 ## Publicación en la Tienda de Aplicaciones
 
-El proyecto ha sido publicado en la tienda de aplicaciones. Puedes encontrar la aplicación en [Google Play Store](<URL_DE_LA_TIENDA>) o [Apple App Store](<URL_DE_LA_TIENDA>).
-
+El proyecto ha sido publicado en la tienda de aplicaciones. Puedes encontrar la aplicación en [Google Play Store](<URL_DE_LA_TIENDA>)
 
 
 
