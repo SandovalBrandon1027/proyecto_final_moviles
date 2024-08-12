@@ -94,7 +94,30 @@ Un video de funcionamiento y una breve explicación del proceso de desarrollo es
 
 ## Publicación en la Tienda de Aplicaciones
 
-El proyecto ha sido publicado en la tienda de aplicaciones. Puedes encontrar la aplicación en [Google Play Store](<URL_DE_LA_TIENDA>)
+- Las aplicaciones necesarias para subir nuestra APK a una tienda serán Aptoide y Aptoide Uploader, el primer paso es descargar ambas aplicaciones.
+
+![image](https://github.com/user-attachments/assets/25cc9c74-a9be-43a2-bbd1-578f8c748822)
+  
+- A continuación desde aptoide debemos crear nuestra propia tienda para subir nuestra aplicación:
+
+![image](https://github.com/user-attachments/assets/858a722a-074a-4ecb-8f68-0f3113f6411d)
+
+- Despúes, desde aptoide uploader, seleccionamos la aplicación que deseemos subir:
+
+![image](https://github.com/user-attachments/assets/9cd3f0d5-f366-4ca8-ab75-0a492902d64b)
+
+- Antes de subir nuestra APK debemos completar algunos campos y procedemos a enviar
+
+![image](https://github.com/user-attachments/assets/b0ad103c-da70-49d1-862c-56c747068ce1)
+
+![image](https://github.com/user-attachments/assets/47dbcc5a-cf57-4541-864c-f14dffc713d9)
+
+- Recibimos el mensaje de confirmación de que nuestra APK ha sido subida de manera correcta!
+
+![image](https://github.com/user-attachments/assets/215c51cd-9fd0-4d58-92fb-8aafe68a4516)
+
+
+El proyecto ha sido publicado en la tienda de aplicaciones. Puedes encontrar la aplicación en [Aptoide](<https://es.aptoide.com/store/polilocalizate>)
 
 
 
