@@ -88,9 +88,9 @@ Calcula el área del polígono formado por las ubicaciones de los topógrafos.
 
 ## Documentación y Videos
 
-El código fuente completo y la documentación están disponibles en [GitHub](<[URL_DEL_REPOSITORIO](https://github.com/SandovalBrandon1027/proyecto_final_moviles.git)>).
+El código fuente completo y la documentación están disponibles en https://github.com/SandovalBrandon1027/proyecto_final_moviles.git).
 
-Un video de funcionamiento y una breve explicación del proceso de desarrollo están disponibles en [YouTube](<[URL_DEL_VIDEO](https://youtu.be/i9hvKQHhkhg?si=9k-s8FJtLBl4Yq6W)>).
+Un video de funcionamiento y una breve explicación del proceso de desarrollo están disponibles en https://youtu.be/i9hvKQHhkhg?si=9k-s8FJtLBl4Yq6W.
 
 ## Publicación en la Tienda de Aplicaciones
 
